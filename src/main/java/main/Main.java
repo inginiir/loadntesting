@@ -13,8 +13,13 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import resources.ResourceService;
+import resources.ResourceServiceController;
+import resources.ResourceServiceControllerMBean;
+import resources.TestResources;
 import servlets.AdminServlet;
 import servlets.HomePageServlet;
+import servlets.ResourceServlet;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
@@ -34,18 +39,23 @@ public class Main {
         LOGGER.info("Starting at http://127.0.0.1:" + port);
 
         AccountServer accountServer = new AccountServerImpl(10);
+        ResourceService resourceService = new TestResources();
 
         AccountServerControllerMBean mBean = new AccountServerController(accountServer);
+        ResourceServiceControllerMBean resourceBean = new ResourceServiceController(resourceService);
         MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
-        ObjectName name = new ObjectName("ServerManager:type=AccountServerController");
-        ObjectName name1 = new ObjectName("Admin:type=AccountServerController.usersLimit");
-        beanServer.registerMBean(mBean, name);
-        beanServer.registerMBean(mBean, name1);
+        ObjectName accountServerJMX = new ObjectName("ServerManager:type=AccountServerController");
+        ObjectName userLimitJMX = new ObjectName("Admin:type=AccountServerController.usersLimit");
+        ObjectName resourceServiceJMX = new ObjectName("Admin:type=ResourceServiceController");
+        beanServer.registerMBean(mBean, accountServerJMX);
+        beanServer.registerMBean(mBean, userLimitJMX);
+        beanServer.registerMBean(resourceBean, resourceServiceJMX);
 
         Server server = new Server(port);
         ServletContextHandler contextHandler =  new ServletContextHandler(ServletContextHandler.SESSIONS);
         contextHandler.addServlet(new ServletHolder(new HomePageServlet(accountServer)), HomePageServlet.PAGE_URL);
         contextHandler.addServlet(new ServletHolder(new AdminServlet(accountServer)), AdminServlet.ADMIN_URL);
+        contextHandler.addServlet(new ServletHolder(new ResourceServlet(resourceService)), ResourceServlet.RESOURCE_URL);
 
         ResourceHandler handler = new ResourceHandler();
         handler.setResourceBase("static");
